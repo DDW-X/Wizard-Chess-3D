@@ -1,6 +1,0 @@
-{
-  "name": "Sanctum Wizard's Chess",
-  "description": "A playable 3D Wizard's Chess game set in an atmospheric Gothic cathedral with sculpted marble and obsidian pieces, custom attack animations, and physical shattering particle effects.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
