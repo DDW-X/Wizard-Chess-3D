@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { Reflector } from 'three/addons/objects/Reflector.js';
 import { SquareCoord } from '../game/chessEngine';
 import { SanctumMaterialLibrary } from './materials';
 
@@ -186,26 +185,13 @@ export function buildGothicCathedralAndBoard(
   aoGrooveMesh.position.y = -0.095;
   group.add(aoGrooveMesh);
 
-  // Real-Time Planar / Screen-Space Reflection Mirror directly beneath the semi-translucent board tiles!
-  // Gives true mirror-like reflections of the 3D chess pieces onto the polished marble & obsidian squares.
+  // Sub-board Polished Obsidian Substrate directly beneath the 64 beveled tiles
+  // (Replaces recursive Reflector pass so the render loop executes a single clean render per frame without oblique-clip Z-fighting)
   const reflectorGeo = new THREE.PlaneGeometry(9.96, 9.96);
-  let boardReflector: Reflector | null = null;
-  if (!isHeadless) {
-    boardReflector = new Reflector(reflectorGeo, {
-      clipBias: 0.003,
-      textureWidth: 1024,
-      textureHeight: 1024,
-      color: 0x3a404d,
-    });
-    boardReflector.rotation.x = -Math.PI / 2;
-    boardReflector.position.y = -0.014;
-    group.add(boardReflector);
-  } else {
-    const mirrorFallback = new THREE.Mesh(reflectorGeo, mats.obsidianGlass);
-    mirrorFallback.rotation.x = -Math.PI / 2;
-    mirrorFallback.position.y = -0.014;
-    group.add(mirrorFallback);
-  }
+  const mirrorSubstrate = new THREE.Mesh(reflectorGeo, mats.obsidianGlass);
+  mirrorSubstrate.rotation.x = -Math.PI / 2;
+  mirrorSubstrate.position.y = -0.022;
+  group.add(mirrorSubstrate);
 
   disposables.push(
     daisStep1Geo,
@@ -234,22 +220,28 @@ export function buildGothicCathedralAndBoard(
     map: filesTex,
     roughness: 0.25,
     metalness: 0.86,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
   const ranksStripMat = new THREE.MeshStandardMaterial({
     map: ranksTex,
     roughness: 0.25,
     metalness: 0.86,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const fileStripSouth = new THREE.Mesh(filesStripGeo, filesStripMat);
-  fileStripSouth.position.set(0, -0.035, 5.21);
+  fileStripSouth.position.set(0, -0.036, 5.21);
   const fileStripNorth = new THREE.Mesh(filesStripGeo, filesStripMat);
-  fileStripNorth.position.set(0, -0.035, -5.21);
+  fileStripNorth.position.set(0, -0.036, -5.21);
 
   const rankStripWest = new THREE.Mesh(ranksStripGeo, ranksStripMat);
-  rankStripWest.position.set(-5.21, -0.035, 0);
+  rankStripWest.position.set(-5.21, -0.036, 0);
   const rankStripEast = new THREE.Mesh(ranksStripGeo, ranksStripMat);
-  rankStripEast.position.set(5.21, -0.035, 0);
+  rankStripEast.position.set(5.21, -0.036, 0);
 
   group.add(fileStripSouth, fileStripNorth, rankStripWest, rankStripEast);
   disposables.push(
@@ -285,8 +277,8 @@ export function buildGothicCathedralAndBoard(
     side: THREE.DoubleSide,
     depthWrite: false,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const attackRingMat = new THREE.MeshBasicMaterial({
@@ -296,8 +288,8 @@ export function buildGothicCathedralAndBoard(
     side: THREE.DoubleSide,
     depthWrite: false,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const selectedPadMat = new THREE.MeshBasicMaterial({
@@ -307,8 +299,8 @@ export function buildGothicCathedralAndBoard(
     side: THREE.DoubleSide,
     depthWrite: false,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   disposables.push(
@@ -515,7 +507,8 @@ export function buildGothicCathedralAndBoard(
     group.add(bGroup);
 
     if (hasPointLight) {
-      const ptLight = new THREE.PointLight(0xff9e3d, 2.6, 15, 1.8);
+      const ptLight = new THREE.PointLight(0xff9e3d, 1.55, 14, 2.0);
+      ptLight.decay = 2;
       ptLight.position.set(bx, 1.85, bz);
       group.add(ptLight);
       candleLights.push(ptLight);
@@ -533,7 +526,6 @@ export function buildGothicCathedralAndBoard(
       godRayCoolMat.uniforms.uTime.value = timeSec;
     },
     dispose: () => {
-      boardReflector?.dispose();
       disposables.forEach((d) => d.dispose());
     },
   };

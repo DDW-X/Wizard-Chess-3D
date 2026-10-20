@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
@@ -186,16 +185,19 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
     scene.background = new THREE.Color(0x090b10);
     scene.fog = new THREE.FogExp2(0x090b10, 0.022);
 
-    // 2. Camera
+    // 2. Camera (Calibrated Frustum: near = 0.5, far = 1000.0 for maximum depth buffer precision & zero Z-fighting)
     const camera = new THREE.PerspectiveCamera(
       40,
       container.clientWidth / Math.max(1, container.clientHeight),
-      0.1,
-      120
+      0.5,
+      1000.0
     );
+    camera.near = 0.5;
+    camera.far = 1000.0;
+    camera.updateProjectionMatrix();
     camera.position.set(0, 8.8, 10.6);
 
-    // 3. Renderer with ACESFilmicToneMapping & High-Contrast Moody Exposure
+    // 3. Renderer with ACESFilmicToneMapping & Fixed Stable Exposure
     const renderer = new THREE.WebGLRenderer({
       antialias: !isHeadless,
       powerPreference: 'high-performance',
@@ -206,14 +208,14 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
     renderer.shadowMap.enabled = !isHeadless;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.0;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
     // 4. 4K Studio + Gothic Cathedral HDRI Environment Map for Multi-Bounce Global Illumination
     const hdriEnvTexture = createCinematicHDRIEnvironment(renderer);
     scene.environment = hdriEnvTexture;
-    scene.environmentIntensity = 1.18;
+    scene.environmentIntensity = 0.88;
 
     // 5. OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -232,41 +234,47 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
     });
 
     // 6. Flawless Cinematic Lighting Setup (Volumetric Key + Central God-Ray Spot + Rim Lights)
-    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x241c14, 0.48);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x241c14, 0.44);
     scene.add(hemiLight);
 
-    // Volumetric Directional Key Light (God-Ray Source) with 4096x4096 PCSS Soft Shadows
-    const sunKeyLight = new THREE.DirectionalLight(0xfff1d6, 2.75);
+    // Volumetric Directional Key Light (God-Ray Source) with 4096x4096 PCFSoftShadowMap
+    const sunKeyLight = new THREE.DirectionalLight(0xfff1d6, 1.95);
     sunKeyLight.position.set(-8.5, 16.5, -7.5);
     sunKeyLight.castShadow = !isHeadless;
     const shadowRes = isHeadless ? 512 : 4096;
     sunKeyLight.shadow.mapSize.set(shadowRes, shadowRes);
     sunKeyLight.shadow.camera.near = 2.0;
-    sunKeyLight.shadow.camera.far = 36.0;
-    const d = 7.4;
+    sunKeyLight.shadow.camera.far = 32.0;
+    const d = 6.5;
     sunKeyLight.shadow.camera.left = -d;
     sunKeyLight.shadow.camera.right = d;
     sunKeyLight.shadow.camera.top = d;
     sunKeyLight.shadow.camera.bottom = -d;
-    sunKeyLight.shadow.bias = -0.00025;
-    sunKeyLight.shadow.normalBias = 0.022;
-    sunKeyLight.shadow.radius = 3.2; // Smooth PCSS penumbra kernel
+    sunKeyLight.shadow.camera.updateProjectionMatrix();
+    sunKeyLight.shadow.bias = -0.0005;
+    sunKeyLight.shadow.normalBias = 0.05;
+    sunKeyLight.shadow.radius = 2.0;
     scene.add(sunKeyLight);
 
     // Central Volumetric God-Ray Spotlight hitting the exact center of the board (0, 0, 0)
-    const centerGodRaySpot = new THREE.SpotLight(0xffdfa0, 3.2, 28, Math.PI / 5.5, 0.75, 1.4);
+    const centerGodRaySpot = new THREE.SpotLight(0xffdfa0, 1.35, 28, Math.PI / 5.5, 0.8, 2.0);
+    centerGodRaySpot.decay = 2;
+    centerGodRaySpot.castShadow = false;
+    centerGodRaySpot.shadow.bias = -0.0005;
+    centerGodRaySpot.shadow.normalBias = 0.05;
+    centerGodRaySpot.shadow.radius = 2.0;
     centerGodRaySpot.position.set(-4.5, 14.0, -5.0);
     centerGodRaySpot.target.position.set(0, 0, 0);
     scene.add(centerGodRaySpot);
     scene.add(centerGodRaySpot.target);
 
     // Cool Moonlight / Clerestory Rim Light (Opposite angle for razor-sharp armor & marble edge separation)
-    const coolRimLight = new THREE.DirectionalLight(0x8bb8ff, 1.42);
+    const coolRimLight = new THREE.DirectionalLight(0x8bb8ff, 1.05);
     coolRimLight.position.set(10.0, 9.5, -9.5);
     scene.add(coolRimLight);
 
     // Warm Golden Back-Rim Light for White Alabaster Subsurface Scattering (SSS) Edge Bleed
-    const warmRimLight = new THREE.DirectionalLight(0xffb86c, 1.05);
+    const warmRimLight = new THREE.DirectionalLight(0xffb86c, 0.78);
     warmRimLight.position.set(-9.5, 6.0, 10.5);
     scene.add(warmRimLight);
 
@@ -343,6 +351,9 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1.0,
+      polygonOffsetUnits: -4.0,
     });
     const haloRingMesh = new THREE.Mesh(haloRingGeo, haloRingMat);
     haloRingMesh.position.y = 0.05;
@@ -358,6 +369,9 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
       depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -1.0,
+      polygonOffsetUnits: -4.0,
     });
     const slashCrescentMesh = new THREE.Mesh(slashCrescentGeo, slashCrescentMat);
     slashCrescentMesh.visible = false;
@@ -365,24 +379,25 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
 
     // 10c. Queen Teleport Dash Afterimage Phantom Silhouettes (3 trailing ghosts)
     const afterimageGhosts: THREE.Mesh[] = [];
+    const ghostMats: THREE.MeshBasicMaterial[] = [];
     const ghostGeo = new THREE.CylinderGeometry(0.14, 0.28, 1.08, 20);
-    const ghostMat = new THREE.MeshBasicMaterial({
-      color: 0x93c5fd,
-      transparent: true,
-      opacity: 0.0,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
     for (let g = 0; g < 3; g++) {
-      const ghost = new THREE.Mesh(ghostGeo, ghostMat.clone());
+      const gMat = new THREE.MeshBasicMaterial({
+        color: 0x93c5fd,
+        transparent: true,
+        opacity: 0.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      ghostMats.push(gMat);
+      const ghost = new THREE.Mesh(ghostGeo, gMat);
       ghost.visible = false;
       scene.add(ghost);
       afterimageGhosts.push(ghost);
     }
 
-    // 11. Post-Processing Pipeline (EffectComposer: RenderPass -> SSAOPass -> UnrealBloomPass -> SMAAPass -> OutputPass)
+    // 11. Stabilized Post-Processing Pipeline (RenderPass -> Clamped UnrealBloomPass -> SMAAPass -> OutputPass)
     let composer: EffectComposer | null = null;
-    let ssaoPass: SSAOPass | null = null;
     let bloomPass: UnrealBloomPass | null = null;
     let smaaPass: SMAAPass | null = null;
 
@@ -391,23 +406,15 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       const renderPass = new RenderPass(scene, camera);
       composer.addPass(renderPass);
 
-      ssaoPass = new SSAOPass(
-        scene,
-        camera,
-        container.clientWidth,
-        container.clientHeight
-      );
-      ssaoPass.kernelRadius = 0.45;
-      ssaoPass.minDistance = 0.0012;
-      ssaoPass.maxDistance = 0.085;
-      composer.addPass(ssaoPass);
-
       bloomPass = new UnrealBloomPass(
         new THREE.Vector2(container.clientWidth, container.clientHeight),
-        0.24,
-        0.52,
-        0.88
+        0.18,
+        0.4,
+        0.9
       );
+      bloomPass.threshold = 0.9;
+      bloomPass.radius = 0.4;
+      bloomPass.strength = 0.18;
       composer.addPass(bloomPass);
 
       smaaPass = new SMAAPass();
@@ -429,6 +436,7 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
 
     let activeMoveAnim: ActiveMoveAnimation | null = null;
     let cameraShakeIntensity = 0;
+    let pawnCohortDirty = true;
 
     let morphTransition: {
       targetTheme: FactionTheme;
@@ -510,6 +518,7 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       });
 
       rebuildPieceClickLookup();
+      pawnCohortDirty = true;
     };
 
     const syncTileHighlights = (gs: GameState, sel: SquareCoord | null) => {
@@ -656,6 +665,8 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       stateRef.current.gameState,
       stateRef.current.selectedSquare
     );
+    // Pre-compile all materials and shaders once up-front to prevent runtime shader compilation stalls
+    renderer.compile(scene, camera);
 
     // 13. Raycasting for 3D Squares & Pieces (Plus initializing Web Audio on first click)
     const raycaster = new THREE.Raycaster();
@@ -716,8 +727,8 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       if (composer) {
         composer.setSize(w, h);
       }
-      if (ssaoPass) {
-        ssaoPass.setSize(w, h);
+      if (bloomPass) {
+        bloomPass.resolution.set(w, h);
       }
     };
     window.addEventListener('resize', onResize);
@@ -1114,18 +1125,22 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
         });
       }
 
-      // C2. Sync THREE.InstancedMesh Cohort Matrices for Pawns (WebGL Draw-Call Optimization)
-      pawnCohortManager.updateFromActors(pieceMap);
+      // C2. Sync THREE.InstancedMesh Cohort Matrices for Pawns only when dirty / moving / morphing
+      if (pawnCohortDirty || activeMoveAnim !== null || morphTransition !== null) {
+        pawnCohortManager.updateFromActors(pieceMap);
+        pawnCohortDirty = activeMoveAnim !== null || morphTransition !== null;
+      }
 
       // D. Update Rigid-Body Voronoi Shatter Physics & Settling Shards
       shatterSystem.update(dt);
 
-      // E. Flickering Flanking Candlelight & Drifting Dust Motes
+      // E. Smooth Clamped Flanking Candlelight (decay = 2, clamped intensity) & Drifting Dust Motes
       cathedral.candleLights.forEach((light, idx) => {
-        light.intensity =
-          2.5 +
-          Math.sin(elapsedSec * 6.5 + idx * 1.9) * 0.35 +
-          Math.cos(elapsedSec * 12.0 + idx) * 0.16;
+        const flicker =
+          1.55 +
+          Math.sin(elapsedSec * 2.8 + idx * 1.9) * 0.16 +
+          Math.cos(elapsedSec * 4.6 + idx) * 0.08;
+        light.intensity = THREE.MathUtils.clamp(flicker, 1.25, 1.85);
       });
 
       const posAttr = dustGeo.getAttribute('position') as THREE.BufferAttribute;
@@ -1227,7 +1242,8 @@ export const ChessViewport: React.FC<ChessViewportProps> = ({
       slashCrescentGeo.dispose();
       slashCrescentMat.dispose();
       ghostGeo.dispose();
-      ghostMat.dispose();
+      ghostMats.forEach((m) => m.dispose());
+      composer?.dispose();
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);

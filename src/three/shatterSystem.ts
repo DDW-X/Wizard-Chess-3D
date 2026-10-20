@@ -202,6 +202,9 @@ export class ShatterParticleSystem {
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
         depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1.0,
+        polygonOffsetUnits: -4.0,
       });
       const mesh = new THREE.Mesh(this.shockwaveGeo, mat);
       mesh.visible = false;

@@ -192,12 +192,12 @@ function injectSubsurfaceScatteringShader(
       shader.fragmentShader.replace(
         '#include <opaque_fragment>',
         `
-        // Subsurface Scattering (SSS) Edge Bleed & Wrap Translucency
+        // Subsurface Scattering (SSS) Edge Bleed & Wrap Translucency (Clamped to prevent over-exposure)
         vec3 sssViewDir = normalize(vViewPosition);
         vec3 sssNormal = normalize(normal);
-        float sssEdgeRim = pow(1.0 - clamp(abs(dot(sssNormal, sssViewDir)), 0.0, 1.0), 2.1);
+        float sssEdgeRim = pow(1.0 - clamp(abs(dot(sssNormal, sssViewDir)), 0.0, 1.0), 2.4);
         float sssUpwardBleed = clamp(sssNormal.y * 0.5 + 0.5, 0.0, 1.0);
-        vec3 sssContribution = uSssColor * (sssEdgeRim * 0.78 + sssUpwardBleed * 0.28) * uSssStrength;
+        vec3 sssContribution = clamp(uSssColor * (sssEdgeRim * 0.45 + sssUpwardBleed * 0.14) * uSssStrength * 0.42, vec3(0.0), vec3(0.18));
         outgoingLight += sssContribution;
         #include <opaque_fragment>
         `
@@ -1034,11 +1034,11 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: wovenClothLightMaps.aoMap,
     aoMapIntensity: 0.35,
     displacementMap: isHeadless ? null : lightMarbleMaps.displacementMap,
-    displacementScale: 0.006,
-    displacementBias: -0.003,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.92,
     clearcoatRoughness: 0.08,
-    transmission: isHeadless ? 0 : 0.36,
+    transmission: 0.0,
     thickness: 2.8,
     attenuationColor: new THREE.Color('#ffd4a6'),
     attenuationDistance: 0.72,
@@ -1047,7 +1047,7 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     sheen: 0.52,
     sheenRoughness: 0.32,
     sheenColor: new THREE.Color('#fff2de'),
-    envMapIntensity: 1.65,
+    envMapIntensity: 1.25,
   });
   injectSubsurfaceScatteringShader(marblePolished, 0xffcfa0, 0.46);
 
@@ -1062,18 +1062,18 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: wovenClothLightMaps.aoMap,
     aoMapIntensity: 0.45,
     displacementMap: isHeadless ? null : lightMarbleMaps.displacementMap,
-    displacementScale: 0.008,
-    displacementBias: -0.004,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.38,
     clearcoatRoughness: 0.25,
-    transmission: isHeadless ? 0 : 0.26,
+    transmission: 0.0,
     thickness: 2.0,
     attenuationColor: new THREE.Color('#ffcca0'),
     attenuationDistance: 0.85,
     sheen: 0.48,
     sheenRoughness: 0.42,
     sheenColor: new THREE.Color('#ffe8c8'),
-    envMapIntensity: 1.35,
+    envMapIntensity: 1.15,
   });
   injectSubsurfaceScatteringShader(marbleCarvedMatte, 0xffc894, 0.38);
 
@@ -1088,22 +1088,22 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: wovenClothDarkMaps.aoMap,
     aoMapIntensity: 0.4,
     displacementMap: isHeadless ? null : darkObsidianMaps.displacementMap,
-    displacementScale: 0.005,
-    displacementBias: -0.0025,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 1.0,
     clearcoatRoughness: 0.04,
     clearcoatNormalMap: darkObsidianMaps.normalMap,
     clearcoatNormalScale: new THREE.Vector2(0.32, 0.32),
     reflectivity: 1.0,
     ior: 1.64,
-    transmission: isHeadless ? 0 : 0.2,
+    transmission: 0.0,
     thickness: 2.2,
     attenuationColor: new THREE.Color('#283c66'),
     attenuationDistance: 0.68,
     sheen: 0.38,
     sheenRoughness: 0.18,
     sheenColor: new THREE.Color('#6888c8'),
-    envMapIntensity: 2.4,
+    envMapIntensity: 1.45,
   });
 
   const obsidianEtchedMatte = new THREE.MeshPhysicalMaterial({
@@ -1117,24 +1117,27 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: wovenClothDarkMaps.aoMap,
     aoMapIntensity: 0.5,
     displacementMap: isHeadless ? null : darkObsidianMaps.displacementMap,
-    displacementScale: 0.007,
-    displacementBias: -0.0035,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.68,
     clearcoatRoughness: 0.16,
     reflectivity: 0.9,
     sheen: 0.42,
     sheenRoughness: 0.28,
     sheenColor: new THREE.Color('#7a9ad8'),
-    envMapIntensity: 1.95,
+    envMapIntensity: 1.35,
   });
 
   const goldFiligree = new THREE.MeshStandardMaterial({
     color: new THREE.Color('#e8be62'),
-    roughness: 0.16,
-    metalness: 0.96,
+    roughness: 0.18,
+    metalness: 0.94,
     bumpMap: lightMarbleMaps.bumpMap,
     bumpScale: 0.004,
-    envMapIntensity: 2.3,
+    envMapIntensity: 1.45,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const crimsonTrim = new THREE.MeshStandardMaterial({
@@ -1161,7 +1164,7 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMapIntensity: 0.85,
     clearcoat: 0.35,
     clearcoatRoughness: 0.2,
-    envMapIntensity: 2.1,
+    envMapIntensity: 1.45,
   });
 
   const crusaderChainmailDark = new THREE.MeshPhysicalMaterial({
@@ -1177,7 +1180,7 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMapIntensity: 0.88,
     clearcoat: 0.4,
     clearcoatRoughness: 0.2,
-    envMapIntensity: 2.0,
+    envMapIntensity: 1.4,
   });
 
   // Crusader Woven Heraldic Surcoat Cloth (with Twill Weave Normal + Drapery AO)
@@ -1225,12 +1228,12 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: chainmailLightMaps.aoMap,
     aoMapIntensity: 0.35,
     displacementMap: isHeadless ? null : spartanLightBronzeMaps.displacementMap,
-    displacementScale: 0.008,
-    displacementBias: -0.004,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.42,
     clearcoatRoughness: 0.22,
     reflectivity: 0.96,
-    envMapIntensity: 2.25,
+    envMapIntensity: 1.45,
   });
 
   const spartanDarkBronze = new THREE.MeshPhysicalMaterial({
@@ -1244,13 +1247,13 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: chainmailDarkMaps.aoMap,
     aoMapIntensity: 0.4,
     displacementMap: isHeadless ? null : spartanDarkBronzeMaps.displacementMap,
-    displacementScale: 0.008,
-    displacementBias: -0.004,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.52,
     clearcoatRoughness: 0.2,
     sheen: 0.35,
     sheenColor: new THREE.Color('#4a9c82'),
-    envMapIntensity: 2.15,
+    envMapIntensity: 1.4,
   });
 
   const spartanWornLeather = new THREE.MeshPhysicalMaterial({
@@ -1264,8 +1267,8 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: wovenClothDarkMaps.aoMap,
     aoMapIntensity: 0.6,
     displacementMap: isHeadless ? null : wovenLeatherMaps.displacementMap,
-    displacementScale: 0.006,
-    displacementBias: -0.003,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     sheen: 0.48,
     sheenRoughness: 0.65,
     sheenColor: new THREE.Color('#965b36'),
@@ -1297,20 +1300,20 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
   const romanPolishedSteel = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#e4e9f2'),
     map: romanLightSteelMaps.albedoMap,
-    roughness: 0.16,
+    roughness: 0.18,
     roughnessMap: romanLightSteelMaps.roughnessMap,
-    metalness: 0.94,
+    metalness: 0.92,
     normalMap: romanLightSteelMaps.normalMap,
     normalScale: new THREE.Vector2(0.75, 0.75),
     aoMap: wovenClothLightMaps.aoMap,
     aoMapIntensity: 0.45,
     displacementMap: isHeadless ? null : romanLightSteelMaps.displacementMap,
-    displacementScale: 0.007,
-    displacementBias: -0.0035,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.65,
-    clearcoatRoughness: 0.1,
-    reflectivity: 0.98,
-    envMapIntensity: 2.35,
+    clearcoatRoughness: 0.12,
+    reflectivity: 0.96,
+    envMapIntensity: 1.45,
   });
 
   const romanDarkSteel = new THREE.MeshPhysicalMaterial({
@@ -1318,24 +1321,24 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     map: romanDarkSteelMaps.albedoMap,
     roughness: 0.2,
     roughnessMap: romanDarkSteelMaps.roughnessMap,
-    metalness: 0.92,
+    metalness: 0.9,
     normalMap: romanDarkSteelMaps.normalMap,
     normalScale: new THREE.Vector2(0.8, 0.8),
     aoMap: wovenClothDarkMaps.aoMap,
     aoMapIntensity: 0.5,
     displacementMap: isHeadless ? null : romanDarkSteelMaps.displacementMap,
-    displacementScale: 0.007,
-    displacementBias: -0.0035,
+    displacementScale: 0.0,
+    displacementBias: 0.0,
     clearcoat: 0.72,
     clearcoatRoughness: 0.12,
     reflectivity: 0.96,
-    envMapIntensity: 2.25,
+    envMapIntensity: 1.4,
   });
 
   const romanImperialMarble = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#fffcf7'),
     map: lightMarbleMaps.albedoMap,
-    roughness: 0.12,
+    roughness: 0.14,
     roughnessMap: lightMarbleMaps.roughnessMap,
     metalness: 0.04,
     normalMap: lightMarbleMaps.normalMap,
@@ -1343,13 +1346,13 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     aoMap: wovenClothLightMaps.aoMap,
     aoMapIntensity: 0.45,
     clearcoat: 0.92,
-    clearcoatRoughness: 0.06,
-    transmission: isHeadless ? 0 : 0.24,
+    clearcoatRoughness: 0.08,
+    transmission: 0.0,
     thickness: 1.9,
     attenuationColor: new THREE.Color('#ffe8c8'),
     attenuationDistance: 1.1,
-    reflectivity: 0.96,
-    envMapIntensity: 1.75,
+    reflectivity: 0.92,
+    envMapIntensity: 1.25,
   });
 
   const romanDarkBasalt = new THREE.MeshPhysicalMaterial({
@@ -1365,16 +1368,19 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     clearcoat: 0.88,
     clearcoatRoughness: 0.09,
     reflectivity: 0.95,
-    envMapIntensity: 2.0,
+    envMapIntensity: 1.35,
   });
 
   const romanImperialGold = new THREE.MeshStandardMaterial({
     color: new THREE.Color('#ffcf52'),
-    roughness: 0.13,
-    metalness: 0.98,
+    roughness: 0.16,
+    metalness: 0.94,
     normalMap: spartanLightBronzeMaps.normalMap,
     normalScale: new THREE.Vector2(0.28, 0.28),
-    envMapIntensity: 2.45,
+    envMapIntensity: 1.5,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const romanCrimsonTunic = new THREE.MeshStandardMaterial({
@@ -1441,6 +1447,9 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     metalness: 0.2,
     emissive: new THREE.Color('#38bdf8'),
     emissiveIntensity: 0.28,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const eyeGlowingSpartanMat = new THREE.MeshStandardMaterial({
@@ -1449,27 +1458,30 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     metalness: 0.1,
     emissive: new THREE.Color('#fde047'),
     emissiveIntensity: 0.68,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const weaponForgedSteel = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#f1f5f9'),
-    roughness: 0.11,
-    metalness: 0.98,
+    roughness: 0.14,
+    metalness: 0.94,
     normalMap: romanLightSteelMaps.normalMap,
     normalScale: new THREE.Vector2(0.25, 0.25),
     clearcoat: 0.85,
     clearcoatRoughness: 0.08,
-    reflectivity: 1.0,
-    envMapIntensity: 2.6,
+    reflectivity: 0.96,
+    envMapIntensity: 1.55,
   });
 
   // ============================================================================
-  // 5. BOARD & CATHEDRAL ENVIRONMENT (Configured for Real-Time SSR / Planar Reflections)
+  // 5. BOARD & CATHEDRAL ENVIRONMENT
   // ============================================================================
   const boardLightSquare = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#f0e7d8'),
     map: boardLightMaps.albedoMap,
-    roughness: 0.09,
+    roughness: 0.1,
     roughnessMap: boardLightMaps.roughnessMap,
     metalness: 0.05,
     normalMap: boardLightMaps.normalMap,
@@ -1477,15 +1489,18 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     clearcoat: 1.0,
     clearcoatRoughness: 0.04,
     reflectivity: 1.0,
-    transparent: true,
-    opacity: 0.84, // Allows underlying real-time planar SSR reflector to shine through
-    envMapIntensity: 1.75,
+    transparent: false,
+    depthWrite: true,
+    polygonOffset: true,
+    polygonOffsetFactor: 1.0,
+    polygonOffsetUnits: 4.0,
+    envMapIntensity: 1.25,
   });
 
   const boardDarkSquare = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color('#10141d'),
     map: boardDarkMaps.albedoMap,
-    roughness: 0.06,
+    roughness: 0.08,
     roughnessMap: boardDarkMaps.roughnessMap,
     metalness: 0.2,
     normalMap: boardDarkMaps.normalMap,
@@ -1493,9 +1508,12 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     clearcoat: 1.0,
     clearcoatRoughness: 0.03,
     reflectivity: 1.0,
-    transparent: true,
-    opacity: 0.76, // Mirror-like obsidian reflection of pieces above
-    envMapIntensity: 2.1,
+    transparent: false,
+    depthWrite: true,
+    polygonOffset: true,
+    polygonOffsetFactor: 1.0,
+    polygonOffsetUnits: 4.0,
+    envMapIntensity: 1.45,
   });
 
   const boardGrooveAO = new THREE.MeshStandardMaterial({
@@ -1518,7 +1536,7 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     metalness: 0.92,
     normalMap: lightMarbleMaps.normalMap,
     normalScale: new THREE.Vector2(0.2, 0.2),
-    envMapIntensity: 1.95,
+    envMapIntensity: 1.45,
   });
 
   const cathedralStone = new THREE.MeshStandardMaterial({
@@ -1550,6 +1568,10 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     transparent: true,
     opacity: 0.62,
     side: THREE.DoubleSide,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const highlightCapture = new THREE.MeshBasicMaterial({
@@ -1557,6 +1579,10 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     transparent: true,
     opacity: 0.76,
     side: THREE.DoubleSide,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const highlightSelected = new THREE.MeshBasicMaterial({
@@ -1564,6 +1590,10 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     transparent: true,
     opacity: 0.72,
     side: THREE.DoubleSide,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const highlightLastMove = new THREE.MeshBasicMaterial({
@@ -1571,6 +1601,10 @@ export function createSanctumMaterials(): SanctumMaterialLibrary {
     transparent: true,
     opacity: 0.36,
     side: THREE.DoubleSide,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1.0,
+    polygonOffsetUnits: -4.0,
   });
 
   const allMaps = [
